@@ -8,7 +8,7 @@ on:
   
   # Allow manual execution for initial testing
   workflow_dispatch:
-
+  
 jobs:
   daily_commit:
     runs-on: ubuntu-latest
@@ -16,23 +16,22 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        # Setting 'persist-credentials: false' is a good practice when you're going to push changes 
-        # in a subsequent step, as it prevents credentials from being exposed in the log.
+        # 🔑 THE FIX IS HERE: Provide the GITHUB_TOKEN for authentication
         with:
-          persist-credentials: false 
-
-      # 2. Include a step with your email 21f3003163@ds.study.iitm.ac.in in its name
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Set persist-credentials to true (or omit it, as it defaults to true) 
+          # when you need to push changes back to the repository.
+          persist-credentials: true 
+          
       - name: Preparing Commit and Identifying User 21f3003163@ds.study.iitm.ac.in
         run: |
-          # Configure Git user for the commit
+          # ... (rest of the git config and file creation)
           git config --global user.name 'DevSync Daily Bot'
-          # NOTE: The default GITHUB_TOKEN has permission to commit. Using the default email below 
-          # is standard for bot commits, but you can set a custom one if required by policy.
+          # Use the GITHUB_ACTIONS bot email for clarity
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
           
-          # Create or update a file with the current timestamp. This ensures a change exists every run.
           echo "Last automated update: $(date)" > DAILY_UPDATE_STATUS.txt
-          
+
       - name: Check for Changes and Stage Files
         id: git_status
         run: |
