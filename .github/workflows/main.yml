@@ -1,0 +1,59 @@
+name: Automated Daily Repository Update
+
+on:
+  # 1. Use schedule with cron syntax to run once per day (must use specific hours/minutes, not wildcards)
+  # This cron expression runs the job every day at 01:00 UTC.
+  schedule:
+    - cron: '0 1 * * *'
+  
+  # Allow manual execution for initial testing
+  workflow_dispatch:
+
+jobs:
+  daily_commit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        # Setting 'persist-credentials: false' is a good practice when you're going to push changes 
+        # in a subsequent step, as it prevents credentials from being exposed in the log.
+        with:
+          persist-credentials: false 
+
+      # 2. Include a step with your email 21f3003163@ds.study.iitm.ac.in in its name
+      - name: Preparing Commit and Identifying User 21f3003163@ds.study.iitm.ac.in
+        run: |
+          # Configure Git user for the commit
+          git config --global user.name 'DevSync Daily Bot'
+          # NOTE: The default GITHUB_TOKEN has permission to commit. Using the default email below 
+          # is standard for bot commits, but you can set a custom one if required by policy.
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          
+          # Create or update a file with the current timestamp. This ensures a change exists every run.
+          echo "Last automated update: $(date)" > DAILY_UPDATE_STATUS.txt
+          
+      - name: Check for Changes and Stage Files
+        id: git_status
+        run: |
+          # Add the updated file to the staging area
+          git add DAILY_UPDATE_STATUS.txt
+          
+          # Check if there are any changes to commit
+          if git diff --cached --exit-code; then
+            echo "No changes detected, skipping commit."
+            echo "commit_needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected, ready to commit."
+            echo "commit_needed=true" >> $GITHUB_OUTPUT
+          fi
+          
+      # 3. Create a commit in each run
+      - name: Create and Push Automated Commit
+        if: steps.git_status.outputs.commit_needed == 'true'
+        run: |
+          # Commit the changes
+          git commit -m "Automated daily update: $(date +%Y-%m-%d)"
+          
+          # Push the new commit to the repository
+          git push
