@@ -2,43 +2,47 @@ name: Automated Daily Repository Update
 
 on:
   # 1. Use schedule with cron syntax to run once per day (must use specific hours/minutes, not wildcards)
-  # This cron expression runs the job every day at 01:00 UTC.
+  # This runs every day at 01:00 UTC (a specific time).
   schedule:
     - cron: '0 1 * * *'
   
-  # Allow manual execution for initial testing
+  # Allow manual execution for initial testing and verification
   workflow_dispatch:
-  
+
 jobs:
   daily_commit:
     runs-on: ubuntu-latest
     
+    # FIX: Grant the GITHUB_TOKEN explicit write permission to the repository
+    permissions:
+      contents: write 
+      
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        # 🔑 THE FIX IS HERE: Provide the GITHUB_TOKEN for authentication
+        # FIX: Pass the GITHUB_TOKEN to the checkout action for authentication
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          # Set persist-credentials to true (or omit it, as it defaults to true) 
-          # when you need to push changes back to the repository.
           persist-credentials: true 
-          
+
+      # 2. Include a step with your email 21f3003163@ds.study.iitm.ac.in in its name
       - name: Preparing Commit and Identifying User 21f3003163@ds.study.iitm.ac.in
         run: |
-          # ... (rest of the git config and file creation)
+          # Configure Git user for the commit
           git config --global user.name 'DevSync Daily Bot'
-          # Use the GITHUB_ACTIONS bot email for clarity
+          # Standard bot email used by GitHub Actions
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
           
+          # Create or update a file with the current timestamp to ensure a change exists every run.
           echo "Last automated update: $(date)" > DAILY_UPDATE_STATUS.txt
-
+          
       - name: Check for Changes and Stage Files
         id: git_status
         run: |
-          # Add the updated file to the staging area
+          # Stage the updated file
           git add DAILY_UPDATE_STATUS.txt
           
-          # Check if there are any changes to commit
+          # Check if there are any changes (index differs from HEAD)
           if git diff --cached --exit-code; then
             echo "No changes detected, skipping commit."
             echo "commit_needed=false" >> $GITHUB_OUTPUT
@@ -49,9 +53,10 @@ jobs:
           
       # 3. Create a commit in each run
       - name: Create and Push Automated Commit
+        # Only run this step if a change was actually detected
         if: steps.git_status.outputs.commit_needed == 'true'
         run: |
-          # Commit the changes
+          # Commit the changes with a dynamic message
           git commit -m "Automated daily update: $(date +%Y-%m-%d)"
           
           # Push the new commit to the repository
